@@ -3,9 +3,7 @@ package main
 import (
 	"context"
 	"flag"
-	"log"
-
-	"github.com/libp2p/go-libp2p"
+	"fmt"
 )
 
 var (
@@ -17,22 +15,20 @@ var (
 )
 
 func main() {
+	instanceId := flag.String("instance-id", "", "Unique identifier for this instance")
+	flag.Parse()
+
+	if *instanceId == "" {
+		fmt.Println("Please provide an instance Id, eg  --instance-id=1")
+		return
+	}
+
 	topicNames := []string{heartbeatTopicName, chatTopicName, blockTopicName, subtreeTopicName}
 
 	flag.Parse()
 	ctx := context.Background()
 
-	h, err := libp2p.New(libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
-	if err != nil {
-		panic(err)
-	}
-	log.Printf("peer ID: %s", h.ID().Pretty())
-	log.Printf("Connect to me on:")
-	for _, addr := range h.Addrs() {
-		log.Printf("  %s/p2p/%s", addr, h.ID().Pretty())
-	}
-
-	node, err := NewNode(ctx, h, topicNames)
+	node, err := NewNode(*instanceId, ctx, topicNames)
 	if err != nil {
 		panic(err)
 	}

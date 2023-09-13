@@ -3,12 +3,15 @@ package main
 import (
 	"bufio"
 	"context"
+	"crypto/rand"
 	"log"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/libp2p/go-libp2p"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	crypto "github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
 
@@ -19,6 +22,7 @@ import (
 const protocolId = "/peermsg/1.0.0"
 const bitcoinProtocolId = "/bitcoin/1.0.0"
 const sendAck = false
+const privateKeyFilename = "private_key_"
 
 type Node struct {
 	ctx               context.Context
@@ -28,7 +32,31 @@ type Node struct {
 	peerMetadataStore *PeerMetadataStore
 }
 
-func NewNode(ctx context.Context, h host.Host, tn []string) (*Node, error) {
+func NewNode(instanceId string, ctx context.Context, tn []string) (*Node, error) {
+	// 12D3KooWFudZPAnNFMf9p6qRSfvkFvjQT1yPPsvXhqE7WRe8UXRt
+	// 12D3KooWCyHMnNekteeQqqBjLQAkAKGoG3u7EaAQyxmwrbKz3jCm
+	// 12D3KooWAdyxKwgwcQnHXoa1QcJrMsN88L54e88uktqK1cnoJ1Ft
+
+	var pk *crypto.PrivKey
+	var err error
+
+	pk, err = readPrivateKey(instanceId)
+	if err != nil {
+		pk, err = generatePrivateKey(instanceId)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	h, err := libp2p.New(libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"), libp2p.Identity(*pk))
+	if err != nil {
+		panic(err)
+	}
+	log.Printf("peer ID: %s", h.ID().Pretty())
+	log.Printf("Connect to me on:")
+	for _, addr := range h.Addrs() {
+		log.Printf("  %s/p2p/%s", addr, h.ID().Pretty())
+	}
 
 	n := &Node{ctx: ctx, host: h}
 	go n.discoverPeers(ctx, tn)
@@ -257,4 +285,54 @@ func readPeerMsg(s network.Stream) error {
 func writePeerMsg(s network.Stream, msg string) error {
 	_, err := s.Write([]byte(msg))
 	return err
+}
+
+func generatePrivateKey(instanceId string) (*crypto.PrivKey, error) {
+	// Generate a new key pair
+	priv, _, err := crypto.GenerateEd25519Key(rand.Reader)
+	if err != nil {
+		return nil, err
+	}
+
+	// Generate Peer ID from the public key
+	// pid, err := peer.IDFromPublicKey(priv.GetPublic())
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// Convert private key to bytes
+	privBytes, err := crypto.MarshalPrivateKey(priv)
+	if err != nil {
+		return nil, err
+	}
+
+	// Save private key to a file
+	err = os.WriteFile(privateKeyFilename+instanceId, privBytes, 0644)
+	if err != nil {
+		return nil, err
+	}
+
+	return &priv, nil
+}
+
+func readPrivateKey(instanceId string) (*crypto.PrivKey, error) {
+	// Read private key from a file
+	privBytes, err := os.ReadFile(privateKeyFilename + instanceId)
+	if err != nil {
+		return nil, err
+	}
+
+	// Unmarshal the private key bytes into a key
+	priv, err := crypto.UnmarshalPrivateKey(privBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	// Generate Peer ID from the public key
+	// pid, err := peer.IDFromPublicKey(priv.GetPublic())
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	return &priv, nil
 }

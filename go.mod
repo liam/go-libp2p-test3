@@ -4,7 +4,6 @@ go 1.20
 
 require (
 	github.com/libp2p/go-libp2p v0.30.0
-	github.com/libp2p/go-libp2p-core v0.20.1
 	github.com/libp2p/go-libp2p-kad-dht v0.21.0
 	github.com/libp2p/go-libp2p-pubsub v0.9.0
 )

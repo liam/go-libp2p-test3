@@ -9,10 +9,11 @@ Peers are discovered using a DHT, so no prior information (other than the rendez
 Either run with `go run`, or build and run the binary:
 
 ```shell
-go run .
+go run .  --instance-id=1
+
 
 # or, build and run separately
 go build .
-./chat
+./chat  --instance-id=1
 ```
  
